@@ -4,13 +4,6 @@ namespace App\Http\Requests;
 
 class AddressRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
 
     /**
      * Get the validation rules that apply to the request.
@@ -20,9 +13,9 @@ class AddressRequest extends BaseRequest
     public function rules()
     {
         return [
-            'addresses' => ['required', 'array', 'min:1'],
-            'addresses.*.country' => ['required', 'string', 'size:2'],
-            'addresses.*.zip' => ['required', 'string', 'regex:/^\d{5}$/'],
+            'addresses' => ['required', 'array', 'min:2'],
+            'addresses.*.country' => ['required', 'string'],
+            'addresses.*.zip' => ['required', 'string'],
             'addresses.*.city' => ['required', 'string'],
         ];
     }
@@ -35,14 +28,15 @@ class AddressRequest extends BaseRequest
     public function messages()
     {
         return [
-            'addresses.required' => 'The addresses field is required.',
-            'addresses.array' => 'The addresses field must be an array.',
-            'addresses.min' => 'At least one address must be provided.',
-            'addresses.*.country.required' => 'The country field is required.',
-            'addresses.*.country.size' => 'The country field must be exactly 2 characters.',
-            'addresses.*.zip.required' => 'The ZIP code is required.',
-            'addresses.*.zip.regex' => 'The ZIP code must be a 5-digit number.',
-            'addresses.*.city.required' => 'The city field is required.',
+            'addresses.required' => 'Adres boş ola bilməz',
+            'addresses.array' => 'Adres array tipində olmalıdır',
+            'addresses.min' => 'Adres minimal olaraq 2 obyekt olmalıdır',
+            'addresses.*.country.required' => 'Ölkə boş ola bilməz',
+            'addresses.*.country.string' => 'Ölkə string tipində olmalıdır',
+            'addresses.*.zip.required' => 'Zip boş ola bilməz',
+            'addresses.*.zip.string' => 'Zip string tipində olmalıdır',
+            'addresses.*.city.required' => 'Şəhər boş ola bilməz',
+            'addresses.*.city.string' => 'Şəhər string tipində olmalıdır',
         ];
     }
 }

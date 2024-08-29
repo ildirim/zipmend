@@ -2,28 +2,44 @@
 
 namespace App\Services;
 
-use App\Helpers\CommonHelper;
+use App\Exceptions\CityNotFoundException;
+use App\Exceptions\DirectionApiException;
 use App\Http\Requests\AddressRequest;
 use App\Http\Resources\VehicleResource;
-use App\Models\City;
-use App\Models\VehicleType;
+use App\Repositories\CityRepository;
+use App\Repositories\VehicleTypeRepository;
 
 class TransportService
 {
     public function __construct(
-        public GoogleService $googleService,
-        public City $city,
-        public VehicleType $vehicleType,
+        public GoogleService         $googleService,
+        public CityRepository        $cityRepository,
+        public VehicleTypeRepository $vehicleTypeRepository,
     )
     {
     }
 
     public function calculatePriceForVehicles(AddressRequest $addressRequest): array
     {
+        foreach ($addressRequest->addresses as $address) {
+            $this->isValidCity($address);
+        }
+
         $sumOfDistance = $this->getSumOfDistance($addressRequest);
 
-        $vehicleTypes = $this->vehicleType->all();
-        return $this->getVehicleResources($vehicleTypes, $sumOfDistance);
+        return $this->getVehicleResources($sumOfDistance);
+    }
+
+    public function isValidCity(array $address): void
+    {
+        $city = $this->cityRepository->getCityByCountryAndZipCodeAndName(
+            $address['country'],
+            $address['zip'],
+            $address['city'],
+        );
+        if (!$city) {
+            throw new CityNotFoundException('City not found');
+        }
     }
 
     public function getSumOfDistance(AddressRequest $addressRequest): float
@@ -34,20 +50,28 @@ class TransportService
             if ($index == 0) {
                 continue;
             }
-            $distance = $this->googleService->getDirection($address['city'], $addresses[$index - 1]['city'])->routes[0]->legs[0]->distance->text;
-            $sumOfDistance += CommonHelper::getFloatFromString($distance);
+            $direction = $this->googleService->getDirection($address['city'], $addresses[$index - 1]['city']);
+            if (!isset($direction->routes[0]->legs[0]->distance->value)) {
+                throw new DirectionApiException('Google Direction Api is not working');
+            }
+            $distanceByMeters = $direction->routes[0]->legs[0]->distance->value;
+            $distanceByMKM = $distanceByMeters / 1000;
+            $sumOfDistance += $distanceByMKM;
         }
         return $sumOfDistance;
     }
 
-    public function getVehicleResources($vehicleTypes, float $sum): array
+    public function getVehicleResources(float $sumOfDistance): array
     {
+        $vehicleTypes = $this->vehicleTypeRepository->getAll();
+
         $vehicleResources = [];
         foreach ($vehicleTypes as $vehicleType) {
-            $vehicleResources[] = [
+            $price = $vehicleType->cost_km * $sumOfDistance;
+            $vehicleResources[] = new VehicleResource([
                 'vehicle_type' => $vehicleType->number,
-                'price' => $vehicleType->cost_km * $sum
-            ];
+                'price' => max($price, $vehicleType->minimum)
+            ]);
         }
         return $vehicleResources;
     }

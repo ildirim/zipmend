@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DirectionApiException;
 use App\Traits\HttpTrait;
 
 class GoogleService
@@ -15,7 +16,7 @@ class GoogleService
             $url = sprintf("maps/api/directions/json?destination=%s&origin=%s&key=%s", $from, $to, env('GOOGLE_KEY'));
             return $this->httpGet($url);
         } catch (\Exception $exception) {
-            throw new \Exception($exception->getMessage());
+            throw new DirectionApiException('Google Direction Api is not working');
         }
     }
 }
